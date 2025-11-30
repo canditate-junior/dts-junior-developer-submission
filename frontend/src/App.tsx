@@ -1,35 +1,102 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
+import { fetchTasks, createTask } from './api';
+import type { Task } from './api';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const load = async () => {
+    try {
+      const data = await fetchTasks();
+      if (Array.isArray(data)) {
+        setTasks(data);
+        setError('');
+      } else {
+        setError('Invalid data received from server.');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Could not connect to the server.');
+    }
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+
+    try {
+      await createTask({ title, description: description.trim() || undefined });
+      setTitle('');
+      setDescription('');
+      load();
+      setError('');
+    } catch (err) {
+      setError('Failed to create task. Please try again.');
+    }
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
+    <div style={{ maxWidth: '600px', margin: '2rem auto', fontFamily: 'sans-serif' }}>
+      <h1>HMCTS Task Manager</h1>
+
+      {error && (
+        <div style={{ color: 'red', marginBottom: '1rem', padding: '10px', background: '#ffebee' }}>
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '2rem' }}>
+        <input
+          aria-label="New Task Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Enter task title..."
+          style={{ padding: '10px', fontSize: '1rem' }}
+          required
+        />
+        <textarea
+          aria-label="Task Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Enter task description (optional)..."
+          style={{ padding: '10px', fontSize: '1rem', minHeight: '60px', resize: 'vertical' }}
+        />
+        <button type="submit" style={{ padding: '10px 20px', cursor: 'pointer' }}>
+          Add Task
         </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
+      </form>
+
+      <ul style={{ listStyle: 'none', padding: 0 }}>
+        {tasks.map((task) => (
+          <li key={task.id} style={{ 
+            padding: '15px', 
+            borderBottom: '1px solid #eee'
+          }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>{task.title}</div>
+            {task.description && (
+              <p style={{ margin: 0, color: '#666', fontSize: '0.9rem' }}>
+                {task.description}
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {tasks.length === 0 && !error && (
+        <p style={{ color: '#888', textAlign: 'center' }}>
+          No tasks found. Use the form above to create one!
         </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+      )}
+    </div>
+  );
 }
 
-export default App
+export default App;
